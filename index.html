@@ -119,6 +119,9 @@ kbd{font-family:var(--f-ui);font-weight:700;color:var(--fg);background:rgba(255,
 .btn:hover{filter:brightness(1.08);}
 .btn:focus-visible{outline:3px solid var(--paper);outline-offset:3px;}
 .btn:active{transform:translateY(2px);box-shadow:0 2px 0 #9b3e10;}
+.btnRow{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+.btn.ghost{background:transparent;color:var(--paper);box-shadow:inset 0 0 0 2px rgba(245,238,221,.45);font-size:18px;padding:12px 20px;}
+.btn.ghost:active{transform:translateY(1px);box-shadow:inset 0 0 0 2px rgba(245,238,221,.45);}
 .tip{font-size:15px;color:#ffd4b0;border-left:3px solid var(--ember);padding-left:10px;}
 .results{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;}
 .results div{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:8px;padding:10px 12px;}
@@ -159,6 +162,7 @@ kbd{font-family:var(--f-ui);font-weight:700;color:var(--fg);background:rgba(255,
   <kbd>E</kbd><span>balığı çevir · lavaboda tabak yıka</span>
   <kbd>1–5</kbd><span>fiş seç</span>
   <kbd>M</kbd><span>müziği aç / kapat</span>
+  <kbd>T</kbd><span>tam ekran aç / kapat</span>
   <kbd>ESC</kbd><span>duraklat</span>
 </div>
 <div class="hud" id="toasts"></div>
@@ -181,15 +185,16 @@ kbd{font-family:var(--f-ui);font-weight:700;color:var(--fg);background:rgba(255,
       <div><kbd>1–5</kbd> fiş seç, birine bakıp <kbd>Q</kbd>: fişi ona ver</div>
       <div><kbd>F</kbd>: kız (hızlandırır, stres yapar)</div>
       <div><kbd>G</kbd>: öv (stresi düşürür)</div>
+      <div><kbd>T</kbd>: tam ekran · <kbd>ESC</kbd>: duraklat</div>
     </div>
-    <div class="tip">Kıvam: ocak üstündeki çubuk yeşil banda gelince tabakla. Hamsi sadece tavada olur. Limonlu fişte tabak elindeyken limon kasasına tıkla. Fişe uyan balığı ocağa koyduğunda fiş otomatik sana yazılır.</div>
+    <div class="tip">Kıvam: ocak üstündeki çubuk yeşil banda gelince tabakla. Hamsi sadece tavada olur. Limonlu ya da soğanlı fişte tabak elindeyken limon veya soğan kasasına tıkla. Fişe uyan balığı ocağa koyduğunda fiş otomatik sana yazılır.</div>
     <div id="touchNote" hidden>Bu prototip klavye ve fare ile oynanır.</div>
-    <button class="btn" id="startBtn" type="button">Servisi başlat</button>
+    <div class="btnRow"><button class="btn" id="startBtn" type="button">Servisi başlat</button><button class="btn ghost fsBtn" id="fsBtnStart" type="button">Tam ekran</button></div>
   </div>
 </div>
 
 <div class="screen" id="pause" hidden>
-  <div class="card"><h1>Mola</h1><p>Mutfak bekliyor. Devam etmek için <kbd>ESC</kbd> ya da <kbd>P</kbd>'ye bas veya düğmeye tıkla.</p><button class="btn" id="resumeBtn" type="button">Devam et</button></div>
+  <div class="card"><h1>Mola</h1><p>Mutfak bekliyor. Devam etmek için <kbd>ESC</kbd> ya da <kbd>P</kbd>'ye bas veya düğmeye tıkla.</p><div class="btnRow"><button class="btn" id="resumeBtn" type="button">Devam et</button><button class="btn ghost fsBtn" id="fsBtnPause" type="button">Tam ekran</button></div></div>
 </div>
 
 <div class="screen" id="end" hidden>
@@ -397,6 +402,8 @@ const M = {
   plate: new THREE.MeshPhysicalMaterial({color:0xf6f4ef, roughness:.18, clearcoat:1, clearcoatRoughness:.08}),
   dirty: new THREE.MeshStandardMaterial({color:0xcab99a, roughness:.7}),
   lemon: new THREE.MeshPhysicalMaterial({color:0xf2cf3a, roughness:.45, clearcoat:.3}),
+  onion: new THREE.MeshPhysicalMaterial({color:0x8a2f5a, roughness:.35, clearcoat:.5, clearcoatRoughness:.2}),
+  onionRing: new THREE.MeshPhysicalMaterial({color:0xd9a6c4, roughness:.3, clearcoat:.6, transparent:true, opacity:.92}),
   bin:   new THREE.MeshStandardMaterial({color:0x34433c, roughness:.6, metalness:.2}),
   brass: new THREE.MeshStandardMaterial({color:0xc9a04a, roughness:.25, metalness:1}),
   rubber:new THREE.MeshStandardMaterial({color:0x1b1d1e, roughness:.9}),
@@ -463,7 +470,9 @@ box(.02,.5,.02,M.steel,1.45,1.2,-4.9,{cast:false});
 
 // sol: köpük balık kasaları (buzlu)
 counter(-5.6,-.4,.8,6);
-const crateDefs=[['cipura',-2.4,'ÇİPURA'],['levrek',-1.0,'LEVREK'],['hamsi',.4,'HAMSİ'],['lemon',1.8,'LİMON']];
+const crateDefs=[['cipura',-2.9,'ÇİPURA'],['levrek',-1.7,'LEVREK'],['hamsi',-.5,'HAMSİ'],['lemon',.7,'LİMON'],['onion',1.9,'SOĞAN']];
+const GARNISH={lemon:{name:'Limon'},onion:{name:'Soğan'}};
+const isGarnish=k=>k in GARNISH;
 // sağ: tezgah, lavabo (bulaşıkhane), kirli tabak rafı, çöp
 counter(5.6,-.5,.8,5.4);
 box(.62,.05,.95,M.steelDark,5.6,.87,-1.0,{cast:false});
@@ -494,10 +503,11 @@ S.plates=addSlot({kind:'plates',label:'Temiz tabaklar',x:1.45,y:.92,z:-4.6,wx:1.
 addSlot({kind:'counter',label:'Tezgah',x:2.5,y:.91,z:-4.6,wx:2.5,wz:-3.6});
 addSlot({kind:'counter',label:'Tezgah',x:3.6,y:.91,z:-4.6,wx:3.6,wz:-3.6});
 crateDefs.forEach(([type,z,lbl])=>{
-  S.crate[type]=addSlot({kind:'crate',give:type,label:lbl.charAt(0)+lower(lbl.slice(1))+' kasası',x:-5.6,y:.91,z,wx:-4.6,wz:z,hw:.7,hd:.95});
-  box(.62,.22,.9,M.box,-5.6,1.02,z);
-  const ice=new THREE.Mesh(new THREE.BoxGeometry(.56,.04,.84),M.ice); ice.position.set(-5.6,1.12,z); scene.add(ice);
-  if(type==='lemon'){ for(let i=0;i<7;i++){ const l=new THREE.Mesh(SPHERE,M.lemon); l.scale.set(.05,.043,.062); l.position.set(-5.6+rand(-.2,.2),1.17,z+rand(-.32,.32)); scene.add(l);} }
+  S.crate[type]=addSlot({kind:'crate',give:type,label:lbl.charAt(0)+lower(lbl.slice(1))+' kasası',x:-5.6,y:.91,z,wx:-4.6,wz:z,hw:.7,hd:.85});
+  box(.62,.22,.86,M.box,-5.6,1.02,z);
+  const ice=new THREE.Mesh(new THREE.BoxGeometry(.56,.04,.8),M.ice); ice.position.set(-5.6,1.12,z); scene.add(ice);
+  if(type==='lemon'){ for(let i=0;i<7;i++){ const l=new THREE.Mesh(SPHERE,M.lemon); l.scale.set(.05,.043,.062); l.position.set(-5.6+rand(-.2,.2),1.17,z+rand(-.3,.3)); scene.add(l);} }
+  else if(type==='onion'){ for(let i=0;i<7;i++){ const on=onionBulb(); on.position.set(-5.6+rand(-.2,.2),1.18,z+rand(-.3,.3)); on.rotation.z=rand(-.4,.4); scene.add(on);} }
   else for(let i=0;i<3;i++){ const f=fishMesh(type,FISH[type].raw); f.group.position.set(-5.6+(i-1)*.15,1.16,z+rand(-.1,.1)); f.group.rotation.y=Math.PI/2+rand(-.3,.3); scene.add(f.group); }
   const lab=labelSprite(lbl); lab.position.set(-5.5,1.62,z); scene.add(lab);
 });
@@ -538,7 +548,7 @@ function createPlate(){
   if(plates.clean<=0) return null;
   plates.clean--; plates.inUse++; platesChanged();
   const g=new THREE.Group(); const m=new THREE.Mesh(new THREE.CylinderGeometry(.19,.16,.022,32),M.plate); m.castShadow=true; m.receiveShadow=true; g.add(m);
-  return {id:++uid,kind:'plate',fish:null,lemon:false,mesh:g,yOff:.012};
+  return {id:++uid,kind:'plate',fish:null,lemon:false,onion:false,mesh:g,yOff:.012};
 }
 /** Tabağı havuza geri verir: 'clean' (kullanılmadı), 'dirty', 'dining' (masaya gitti), 'broken' */
 function returnPlate(p,where){
@@ -554,8 +564,15 @@ function returnPlate(p,where){
   platesChanged();
 }
 function lemonMesh(){ const l=new THREE.Mesh(SPHERE,M.lemon); l.scale.set(.05,.035,.06); l.castShadow=true; return l; }
-function createLemon(){ const g=new THREE.Group(); g.add(lemonMesh()); return {id:++uid,kind:'lemon',mesh:g,yOff:.035}; }
-function addLemon(p){ p.lemon=true; const l=lemonMesh(); l.position.set(.11,.03,.08); p.mesh.add(l); }
+function onionBulb(){ const g=new THREE.Group(); const b=new THREE.Mesh(SPHERE,M.onion); b.scale.set(.052,.046,.052); b.castShadow=true; g.add(b);
+  const tip=new THREE.Mesh(CONE,M.onion); tip.scale.set(.012,.035,.012); tip.position.y=.052; g.add(tip); return g; }
+function onionRings(){ const g=new THREE.Group(); for(let i=0;i<3;i++){ const r=new THREE.Mesh(new THREE.TorusGeometry(.03+i*.008,.005,6,20),M.onionRing); r.rotation.x=Math.PI/2; r.position.set(i*.03-.03,.004,i*.012); g.add(r);} return g; }
+function createGarnish(type){ const g=new THREE.Group(); g.add(type==='lemon'?lemonMesh():onionBulb()); return {id:++uid,kind:type,mesh:g,yOff:type==='lemon'?.035:.045}; }
+function addGarnish(p,type){ if(p[type]) return; p[type]=true;
+  if(type==='lemon'){ const l=lemonMesh(); l.position.set(.11,.03,.08); p.mesh.add(l); }
+  else { const r=onionRings(); r.position.set(-.1,.014,.07); p.mesh.add(r); } }
+/** Tabakta eksik kalan garnitür (yoksa null) */
+const missingGarnish=(o,p)=> (o.lemon&&!p.lemon)?'lemon':(o.onion&&!p.onion)?'onion':null;
 function putFishOnPlate(f,p){ p.fish=f; f.slot=null; p.mesh.add(f.mesh); f.mesh.position.set(0,.012+f.yOff,0); f.mesh.rotation.set((f.flips%2)*Math.PI,.35,0); }
 function discard(it){
   if(!it) return;
@@ -877,9 +894,12 @@ function hPhase(h,name,skipDawdle=false){
       h.skipFlip=mk==='forgetFlip'; h.task=`${F.name} pişiriyor`;
       go(h,s.work,()=>{ h.mode='watch'; h.reactT=-1; },slotPos(s)); break;
     }
-    case 'lemon':
-      h.task='limon ekliyor';
-      go(h,S.crate.lemon.work,()=>act(h,.5,()=>{ if(h.held&&h.held.kind==='plate') addLemon(h.held); hPhase(h,'serve'); }),slotPos(S.crate.lemon)); break;
+    case 'garnish': {
+      const g=h.held&&h.held.kind==='plate'?missingGarnish(o,h.held):null;
+      if(!g) return hPhase(h,'serve',true);
+      h.task=`${lower(GARNISH[g].name)} ekliyor`;
+      go(h,S.crate[g].work,()=>act(h,.5,()=>{ if(h.held&&h.held.kind==='plate') addGarnish(h.held,g); hPhase(h,missingGarnish(o,h.held||{})?'garnish':'serve',true); }),slotPos(S.crate[g])); break;
+    }
     case 'serve':
       if(mk==='dropItem') h.dropPending=true;
       h.task='servise götürüyor';
@@ -903,7 +923,7 @@ function hWatch(h,dt){
   const mood=h.morale.mood;
   if(h.reactT<0) h.reactT=mood==='demoralized'?rand(1,2.6):rand(.12,.3);
   h.reactT-=dt*Math.max(.2,h.morale.mods.work); if(h.reactT>0) return; h.reactT=-1;
-  if(done) act(h,.4,()=>{ if(s.item!==f||!h.held) return hAbort(h); takeFromSlot(s); putFishOnPlate(f,h.held); hRelease(h); hPhase(h,o.lemon?'lemon':'serve'); });
+  if(done) act(h,.4,()=>{ if(s.item!==f||!h.held) return hAbort(h); takeFromSlot(s); putFishOnPlate(f,h.held); hRelease(h); hPhase(h,missingGarnish(o,h.held)?'garnish':'serve'); });
   else act(h,.35,()=>{ if(s.item===f) flipFish(f); h.flipped=true; h.mode='watch'; });
 }
 function hRelease(h){ if(h.slot){ h.slot.reserved=null; h.slot=null; } }
@@ -1013,15 +1033,32 @@ function azPraise(){ state.praises++; if(AZ.sulkT>0){ AZ.sulkT=0; bubbles.say('a
 const player={pos:new THREE.Vector3(0,0,2.6),yaw:0,pitch:-.12,held:null,wash:0,walk:0};
 const keys=new Set();
 let target=null;
-function collides(x,z){ if(x<-5.72||x>5.72||z<-4.72||z>4.72) return true; for(const o of obstacles){ if(x>o.minX-.28&&x<o.maxX+.28&&z>o.minZ-.28&&z<o.maxZ+.28) return true; } return false; }
+// Çarpışma: oyuncu 0.28 m yarıçaplı bir daire. Hareketten sonra her engelden en kısa yoldan dışarı itilir.
+// Böylece köşelerde kayar, bir karakter onu tezgaha itse bile asla engelin "içinde" kilitlenip kalmaz.
+const PR=.28;
+function resolvePlayer(){
+  const p=player.pos;
+  for(let pass=0;pass<3;pass++){
+    for(const o of obstacles){
+      const cx=clamp(p.x,o.minX,o.maxX), cz=clamp(p.z,o.minZ,o.maxZ), dx=p.x-cx, dz=p.z-cz, d2=dx*dx+dz*dz;
+      if(d2>=PR*PR) continue;
+      if(d2>1e-8){ const d=Math.sqrt(d2), k=(PR-d)/d; p.x+=dx*k; p.z+=dz*k; }
+      else { const l=p.x-o.minX, r=o.maxX-p.x, b=p.z-o.minZ, f=o.maxZ-p.z, m=Math.min(l,r,b,f);
+        if(m===l) p.x=o.minX-PR; else if(m===r) p.x=o.maxX+PR; else if(m===b) p.z=o.minZ-PR; else p.z=o.maxZ+PR; }
+    }
+    p.x=clamp(p.x,-6+PR,6-PR); p.z=clamp(p.z,-5+PR,5-PR);
+  }
+}
 function playerMove(dt){
   let f=0,s=0; if(keys.has('KeyW'))f++; if(keys.has('KeyS'))f--; if(keys.has('KeyD'))s++; if(keys.has('KeyA'))s--;
   if(keys.has('ArrowLeft')) player.yaw+=2.2*dt; if(keys.has('ArrowRight')) player.yaw-=2.2*dt;
   if(keys.has('ArrowUp')) player.pitch=clamp(player.pitch+1.5*dt,-1.35,1.2); if(keys.has('ArrowDown')) player.pitch=clamp(player.pitch-1.5*dt,-1.35,1.2);
   if(f||s){ const l=Math.hypot(f,s), sp=3.1*dt/l, sy=Math.sin(player.yaw), cy=Math.cos(player.yaw);
     const dx=(-sy*f+cy*s)*sp, dz=(-cy*f-sy*s)*sp;
-    if(!collides(player.pos.x+dx,player.pos.z)) player.pos.x+=dx; if(!collides(player.pos.x,player.pos.z+dz)) player.pos.z+=dz; player.walk+=dt*9; }
-  for(const n of [...HELPERS,AZ]){ const px=player.pos.x-n.pos.x, pz=player.pos.z-n.pos.z, pd=Math.hypot(px,pz); if(pd<.55&&pd>1e-3){ player.pos.x+=px/pd*(.55-pd); player.pos.z+=pz/pd*(.55-pd); } }
+    player.pos.x+=dx; player.pos.z+=dz; player.walk+=dt*9; }
+  // karakterler yumuşakça iter; tezgahlar her zaman son sözü söyler
+  for(const n of [...HELPERS,AZ]){ const px=player.pos.x-n.pos.x, pz=player.pos.z-n.pos.z, pd=Math.hypot(px,pz); if(pd<.55&&pd>1e-3){ const k=(.55-pd)*.6/pd; player.pos.x+=px*k; player.pos.z+=pz*k; } }
+  resolvePlayer();
   camera.position.set(player.pos.x,1.65+Math.sin(player.walk)*.015,player.pos.z); camera.rotation.set(player.pitch,player.yaw,0);
 }
 const ray=new THREE.Raycaster(), CENTER=new THREE.Vector2();
@@ -1042,8 +1079,8 @@ function interact(){
   switch(t.kind){
     case 'npc': return toast(`${t.npc.name}: Q fiş ver · F kız · G öv`);
     case 'crate':
-      if(!h) give(t.give==='lemon'?createLemon():createFish(t.give));
-      else if(h.kind==='plate'&&t.give==='lemon'){ if(h.lemon) toast('Tabakta zaten limon var'); else { addLemon(h); sfx.place(); } }
+      if(!h) give(isGarnish(t.give)?createGarnish(t.give):createFish(t.give));
+      else if(h.kind==='plate'&&isGarnish(t.give)){ if(h[t.give]) toast(`Tabakta zaten ${lower(GARNISH[t.give].name)} var`); else { addGarnish(h,t.give); sfx.place(); } }
       else toast('Elin dolu');
       return;
     case 'plates': {
@@ -1075,8 +1112,8 @@ function slotInteract(s,h){
   }
   if(h.kind==='plate'&&!h.fish&&I.kind==='fish'){ takeFromSlot(s); putFishOnPlate(I,h); sfx.place(); return; }
   if(h.kind==='fish'&&I.kind==='plate'&&!I.fish){ player.held=null; camera.remove(h.mesh); putFishOnPlate(h,I); sfx.place(); return; }
-  if(h.kind==='lemon'&&I.kind==='plate'&&!I.lemon){ discard(h); player.held=null; addLemon(I); sfx.place(); return; }
-  if(h.kind==='plate'&&!h.lemon&&I.kind==='lemon'){ takeFromSlot(s); discard(I); addLemon(h); sfx.place(); return; }
+  if(isGarnish(h.kind)&&I.kind==='plate'&&!I[h.kind]){ discard(h); player.held=null; addGarnish(I,h.kind); sfx.place(); return; }
+  if(h.kind==='plate'&&isGarnish(I.kind)&&!h[I.kind]){ takeFromSlot(s); addGarnish(h,I.kind); discard(I); sfx.place(); return; }
   toast('Burası dolu');
 }
 function startWash(){
@@ -1145,13 +1182,13 @@ function spawnOrder(){
   const r=Math.random(), fish=r<.4?'cipura':r<.7?'levrek':'hamsi';
   const method=fish==='hamsi'?'pan':(Math.random()<.55?'grill':'pan');
   const life=FISH[fish].life+(method==='grill'?10:0);
-  const o={id:++state.oid,no:state.oid,table:1+Math.floor(Math.random()*14),fish,method,lemon:Math.random()<.5,life,rem:life,claimedBy:null,created:now,el:null};
+  const o={id:++state.oid,no:state.oid,table:1+Math.floor(Math.random()*14),fish,method,lemon:Math.random()<.45,onion:Math.random()<.35,life,rem:life,claimedBy:null,created:now,el:null};
   state.orders.push(o); renderTicket(o); sfx.print();
 }
 function renderTicket(o){
   const el=document.createElement('div'); el.className='ticket';
   el.innerHTML=`<div class="t-head"><span class="t-key"></span><span>#${String(o.no).padStart(2,'0')} · Masa ${o.table}</span></div>
-    <div class="t-fish">${FISH[o.fish].name.toLocaleUpperCase('tr')}</div><div>${METHOD[o.method]}${o.lemon?' + Limon':''}</div>
+    <div class="t-fish">${FISH[o.fish].name.toLocaleUpperCase('tr')}</div><div>${METHOD[o.method]}${o.lemon?' + Limon':''}${o.onion?' + Soğan':''}</div>
     <div class="t-owner">Alıcı: <b>—</b></div><div class="t-bar"><i></i></div>`;
   o.el=el; o.barEl=el.querySelector('.t-bar i'); o.ownEl=el.querySelector('.t-owner b'); $('tickets').appendChild(el); refreshTicket(o); refreshTickets();
 }
@@ -1173,7 +1210,8 @@ function serve(p,by,pref){
   const q=Math.min(qual(f.sides[0]),qual(f.sides[1]));
   if(q===0){ returnPlate(p,'dirty'); addScore(-15); state.rejected++; toast(`#${o.no} geri döndü: ${doneWord(worst(f))}! (−15)`,'bad'); sfx.fail(); return 'rejected'; }
   let lf=1, note='';
-  if(o.lemon&&!p.lemon){ lf=.7; note=' · limon unutuldu'; } else if(!o.lemon&&p.lemon){ lf=.9; note=' · istenmeyen limon'; }
+  for(const g of Object.keys(GARNISH)){ const nm=lower(GARNISH[g].name);
+    if(o[g]&&!p[g]){ lf*=.75; note+=` · ${nm} unutuldu`; } else if(!o[g]&&p[g]){ lf*=.9; note+=` · istenmeyen ${nm}`; } }
   const stolen=o.claimedBy&&o.claimedBy!==by;
   const tf=.6+.4*o.rem/o.life, tip=(q===1&&o.rem/o.life>.5&&lf===1)?25:0;
   const pts=Math.round(100*q*lf*tf)+tip; addScore(pts); state.served++; state.qSum+=q;
@@ -1231,8 +1269,8 @@ const fishInfo=f=> f.cookedOn ? (f.cookedOn==='grill'?`alt %${Math.round(f.sides
 function itemText(it){
   if(!it) return '';
   if(it.kind==='fish') return `${FISH[it.type].name}, ${fishInfo(it)}`;
-  if(it.kind==='lemon') return 'Limon';
-  return `Tabak${it.fish?': '+FISH[it.fish.type].name+(it.fish.cookedOn?' '+lower(METHOD[it.fish.cookedOn]):'')+', '+doneWord(worst(it.fish)):' (boş)'}${it.lemon?' + limon':''}`;
+  if(isGarnish(it.kind)) return GARNISH[it.kind].name;
+  return `Tabak${it.fish?': '+FISH[it.fish.type].name+(it.fish.cookedOn?' '+lower(METHOD[it.fish.cookedOn]):'')+', '+doneWord(worst(it.fish)):' (boş)'}${it.lemon?' + limon':''}${it.onion?' + soğan':''}`;
 }
 let lastAim='', lastHeld='', dotsKey='';
 const mateEls={}; ['riza','mami','aziz'].forEach(id=>{ const r=$('m-'+id); mateEls[id]={chip:r.querySelector('.chip'),bar:r.querySelector('.bar i'),p:r.querySelector('.mk.p'),c:r.querySelector('.mk.c'),task:r.querySelector('.task')}; });
@@ -1246,7 +1284,7 @@ function updateHUD(){
     if(t.kind==='npc'){ const n=t.npc; html=n===AZ?`<b>Patlıcan Aziz</b> · ${AZ.sulkT>0?'küs':AZ.boostT>0?'turbo':'bulaşıkta'}<span class="hint">F kız (hızlanır) · G öv</span>`:`<b>${n.name}</b> · ${lower(MOOD_NAME[n.morale.mood])}<span class="hint">Q fiş ver · F kız · G öv</span>`; }
     else if(t.kind==='grill'||t.kind==='pan'){ html=`<b>${t.label}</b>${t.item?' · '+itemText(t.item):' · boş'}${t.reserved?' · '+PEOPLE[t.reserved].name+' ayırdı':''}`;
       html+=`<span class="hint">${t.item?(h&&h.kind==='plate'&&!h.fish?'Sol tık: tabağa al':!h?'Sol tık: al':'')+(t.kind==='grill'?' · E: çevir':''):(h&&h.kind==='fish'?'Sol tık: koy':'')}</span>`; }
-    else if(t.kind==='crate') html=`<b>${t.label}</b><span class="hint">${!h?'Sol tık: al':(h.kind==='plate'&&t.give==='lemon'?'Sol tık: tabağa limon koy':'')}</span>`;
+    else if(t.kind==='crate') html=`<b>${t.label}</b><span class="hint">${!h?'Sol tık: al':(h.kind==='plate'&&isGarnish(t.give)?`Sol tık: tabağa ${lower(GARNISH[t.give].name)} koy`:'')}</span>`;
     else if(t.kind==='plates') html=`<b>Temiz tabaklar</b> · ${plates.clean} adet<span class="hint">${plates.clean===0?'Tabak yok!':!h?'Sol tık: tabak al':h.kind==='fish'?'Sol tık: balığı tabağa al':''}</span>`;
     else if(t.kind==='sink') html=`<b>Lavabo</b> · ${plates.dirty} kirli<span class="hint">${player.wash>0?`Yıkanıyor… ${player.wash.toFixed(1)} sn`:plates.dirty?'E ya da sol tık: bir tabak yıka (4 sn)':''}</span>`;
     else if(t.kind==='dirty') html=`<b>Kirli tabak rafı</b> · ${plates.dirty} tabak`;
@@ -1330,7 +1368,7 @@ function tryLock(){
 // Kilitliyken ESC'yi tarayıcı yutar ve kilidi bırakır: bunu "duraklat" olarak yorumla
 document.addEventListener('pointerlockchange',()=>{
   lastMX=null;
-  if(wasLocked&&!locked()&&state.running&&!state.paused){ togglePause(); lockPauseAt=performance.now(); }
+  if(wasLocked&&!locked()&&!fsToggling()&&state.running&&!state.paused){ togglePause(); lockPauseAt=performance.now(); }
   wasLocked=locked();
 });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -1349,6 +1387,8 @@ addEventListener('mousemove',e=>{
 });
 canvas.addEventListener('mouseleave',()=>{ lastMX=null; });
 addEventListener('keydown',e=>{
+  if(e.code==='KeyT'&&!e.repeat){ toggleFullscreen(); return; }
+  if(e.code==='Escape'&&fsEl()&&state.paused) return; // tam ekrandayken molada ESC yalnızca tam ekrandan çıkar
   if((e.code==='KeyP'||e.code==='Escape')&&state.running){ e.preventDefault(); if(e.code==='Escape'&&performance.now()-lockPauseAt<400) return; togglePause(); return; }
   if(e.code==='KeyM'){ bgmOn=!bgmOn; if(bgmBus) bgmBus.gain.setTargetAtTime(bgmOn?.5:0,ac.currentTime,.1); toast(bgmOn?'Müzik açık':'Müzik kapalı'); return; }
   if(!state.running||state.paused) return;
@@ -1364,6 +1404,31 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>keys.delete(e.code));
 addEventListener('blur',()=>keys.clear());
 document.addEventListener('visibilitychange',()=>{ if(document.hidden&&state.running&&!state.paused) togglePause(); });
+/* ---------- tam ekran ---------- */
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+// Oyuncunun kendi istediği tam ekran değişikliği gerçekleşene kadar "ESC ile çıktı" sanıp oyunu duraklatma
+let fsPending=null, fsPendingAt=0, fsClearT=null;
+const fsToggling=()=>fsPending!==null&&performance.now()-fsPendingAt<5000;
+function toggleFullscreen(){
+  clearTimeout(fsClearT); fsPending=fsEl()?'exit':'enter'; fsPendingAt=performance.now();
+  try{
+    if(fsEl()){ const x=document.exitFullscreen||document.webkitExitFullscreen; if(x){ const r=x.call(document); if(r&&r.catch) r.catch(()=>{}); } }
+    else { const el=document.documentElement, rq=el.requestFullscreen||el.webkitRequestFullscreen;
+      if(!rq) return toast('Bu tarayıcı tam ekranı desteklemiyor','bad');
+      const r=rq.call(el); if(r&&r.catch) r.catch(()=>toast('Tam ekran açılamadı','bad')); }
+  }catch(err){ toast('Tam ekran açılamadı','bad'); }
+}
+function onFsChange(){
+  const on=!!fsEl();
+  document.querySelectorAll('.fsBtn').forEach(b=>b.textContent=on?'Tam ekrandan çık':'Tam ekran');
+  // ESC ile tam ekrandan çıkılırsa (tarayıcı tuşu yutar) oyunu duraklat
+  const expected=fsToggling()&&((fsPending==='exit')===!on);
+  if(!on&&!expected&&state.running&&!state.paused){ togglePause(); lockPauseAt=performance.now(); }
+  if(expected){ clearTimeout(fsClearT); fsClearT=setTimeout(()=>{ fsPending=null; },600); } // ardından gelen kilit değişikliği de korunsun
+  if(on&&state.running&&!state.paused) setTimeout(tryLock,50);
+}
+document.addEventListener('fullscreenchange',onFsChange);
+document.addEventListener('webkitfullscreenchange',onFsChange);
 function togglePause(){ state.paused=!state.paused; $('pause').hidden=!state.paused; keys.clear(); if(state.paused&&locked()) document.exitPointerLock(); last=performance.now(); if(ac) state.paused?ac.suspend():ac.resume(); }
 
 /* ============================== vardiya akışı ============================== */
@@ -1400,6 +1465,7 @@ function endShift(){
 $('startBtn').addEventListener('click',startShift);
 $('againBtn').addEventListener('click',startShift);
 $('resumeBtn').addEventListener('click',()=>{ togglePause(); tryLock(); });
+document.querySelectorAll('.fsBtn').forEach(b=>b.addEventListener('click',toggleFullscreen));
 if(matchMedia('(pointer: coarse)').matches) $('touchNote').hidden=false;
 
 bubbles.ctx=()=>({hamsiOpen:state.orders.some(o=>o.fish==='hamsi'), azizAtSink:AZ.washing||AZ.sulkT>0||(AZ.mode==='idle'&&AZ.atSink)});
